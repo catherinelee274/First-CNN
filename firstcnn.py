@@ -13,9 +13,9 @@ from tensorflow.examples.tutorials.mnist import input_data
 mnist = input_data.read_data_sets("MNIST_data/", one_hot=True)
 
 #variables for the NN
-learning_rate = 0.5
+learning_rate = 0.0001
 epochs = 10
-batch_size = 100
+batch_size = 50
 
 # declare the training data placeholders
 # input x - for 28 x 28 pixels = 784
@@ -76,33 +76,51 @@ bd1 = tf.Variable(tf.truncated_normal([1000],stddev = 0.01), name = 'bd1')
 
 ##multiplying weights of fully connected layer with flattened convolutional output, and adding bias 
 #hidden_out = tf.add(tf.matmul(x,W1),b1)
-
 dense_layer1 = tf.matmul(flattened,wd1) + bd1
 
 #activation relu
 dense_layer1 = tf.nn.relu(dense_layer1) #Activation layer
 
+#more layers for softmax activations (layer connects to output)
+wd2 = tf.Variable(tf.truncated_normal([1000,10],stddev=0.03),name = 'wd2')
+bd2 = tf.Variable(tf.truncated_normal([10],stddev=0.01),name='bd2')
+
+dense_layer2 = tf.matmul(dense_layer1,wd2)+bd2
+#softmax
+y_ = tf.nn.softmax(dense_layer2) #predicted output values 
+
+#cross entropy cost func
+#first input is output of matrix mult of final layer + bias
+#second is training target vector
+#result is cross entropy calc per training (a scalar which is why we use reduce mean)
+cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=dense_layer2,labels=y))
 
 
-#softmax activation for output layer 
-y_ = tf.nn.softmax(tf.add(tf.matmul(hidden_out,W2),b2))
 
-#cross entropy cost function for the optimization/backpropagation to work on
-y_clipped = tf.clip_by_value(y_, 1e-10, 0.9999999) #makes sure we never get log(0), aka parametrizes trainig
-cross_entropy = -tf.reduce_mean(tf.reduce_sum(y * tf.log(y_clipped) #cross entropy calculation
-                         + (1 - y) * tf.log(1 - y_clipped), axis=1))
 
-#optimizer/ peforms gradient descent and backpropogation
-#optimizer - makes training faster ?
-optimizer = tf.train.GradientDescentOptimizer(learning_rate=learning_rate).minimize(cross_entropy)
+# --------- Training Structure ---------------#
+#create optimizer
+#create correct prediction and accuracy eval operations
+#initialize operations
+#determine # of batch runs in a training epoch
+#for each epoch:
+#   for each batch:
+#       extract batch data
+#       run the optimizer and cross entropy operations
+#       add to avg cost
+#   calculate current test accuracy
+#   pring out some results
+#calculate the final test accuracy and print 
 
-#var init
-init_op = tf.global_variables_initializer() 
+#optimizer
+optimiser = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cross_entropy)
 
-#accuracy assesment operation
+#define an accuracy assessment operatoi
 correct_prediction = tf.equal(tf.argmax(y,1), tf.argmax(y_,1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
+#init var
+init_op = tf.global_variables_initializer() 
 
 # start the session
 with tf.Session() as sess:
@@ -113,11 +131,12 @@ with tf.Session() as sess:
 
    for epoch in range(epochs):
        avg_cost = 0 #to keep track of avg cross entropy cost for each epoch 
-
        for i in range(total_batch):
            batch_x, batch_y = mnist.train.next_batch(batch_size=batch_size) #get random batch x and batch y from MNIST 
-           _, c = sess.run([optimizer, cross_entropy], 
-                           feed_dict={x: batch_x, y: batch_y})
+           _, c = sess.run([optimiser, cross_entropy], feed_dict={x: batch_x, y: batch_y})
            avg_cost += c / total_batch
-           print("Epoch:", (epoch + 1), "cost =", "{:.3f}".format(avg_cost))
+           
+       test_acc = sess.run(accuracy, feed_dict = {x: mnist.test.images, y: mnist.test.labels})
+       print("Epoch:", (epoch + 1), "cost =", "{:.3f}".format(avg_cost), " test accuracy: {:.3f}".format(test_acc))
    print(sess.run(accuracy, feed_dict={x: mnist.test.images, y: mnist.test.labels}))
+   print("Training complete!")
