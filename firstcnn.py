@@ -9,13 +9,17 @@ First Convolutional Neural Network
 import tensorflow as tf
 from tensorflow.examples.tutorials.mnist import input_data
 
-#load mnist data 
+#load mnist dataset 
 mnist = input_data.read_data_sets("MNIST_data/", one_hot=True)
+
+#classes = ['1','2','3','4','5','6','7','8','9']
 
 #variables for the NN
 learning_rate = 0.0001
 epochs = 10
 batch_size = 50
+channels = 1
+
 
 # declare the training data placeholders
 # input x - for 28 x 28 pixels = 784
@@ -29,7 +33,7 @@ y = tf.placeholder(tf.float32, [None, 10])
 
 #reshape x for pooling
 #-1 so total size remains constant bc ocnvolution requries 4d tensor
-x_shaped = tf.reshape(x,[-1,origX,origX,1])
+x_shaped = tf.reshape(x,[-1,origX,origX,channels])
 #[i,j,k,l]
 #i is batch size (something we don't know yet so it is set to -1)
 #l is the channel number equal to 1 (if RGB image, 3 channels )
@@ -95,9 +99,6 @@ y_ = tf.nn.softmax(dense_layer2) #predicted output values
 #result is cross entropy calc per training (a scalar which is why we use reduce mean)
 cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=dense_layer2,labels=y))
 
-
-
-
 # --------- Training Structure ---------------#
 #create optimizer
 #create correct prediction and accuracy eval operations
@@ -115,12 +116,16 @@ cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=de
 #optimizer
 optimiser = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cross_entropy)
 
-#define an accuracy assessment operatoi
+#define an accuracy assessment operation
 correct_prediction = tf.equal(tf.argmax(y,1), tf.argmax(y_,1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
 #init var
 init_op = tf.global_variables_initializer() 
+
+#create saver 
+saver = tf.train.Saver() 
+
 
 # start the session
 with tf.Session() as sess:
@@ -138,5 +143,6 @@ with tf.Session() as sess:
            
        test_acc = sess.run(accuracy, feed_dict = {x: mnist.test.images, y: mnist.test.labels})
        print("Epoch:", (epoch + 1), "cost =", "{:.3f}".format(avg_cost), " test accuracy: {:.3f}".format(test_acc))
+       saver.save(sess, cnn-output/output)
    print(sess.run(accuracy, feed_dict={x: mnist.test.images, y: mnist.test.labels}))
    print("Training complete!")
